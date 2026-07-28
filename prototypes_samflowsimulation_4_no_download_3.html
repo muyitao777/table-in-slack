@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Table in Slack — Live Prototype · Sam builds a quarterly hiring report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;0,900;1,400;1,700&display=swap');
+  :root{
+    --aubergine:#4D2A4F;--aubergine-top:#452447;--brand:#4A154B;--active:#1164A3;
+    --sidebar-text:rgba(255,255,255,.78);--ink:#1D1C1D;--sec:#5E5D60;--ter:#868686;
+    --s-blue:#36C5F0;--s-green:#2EB67D;--s-yellow:#ECB22E;--s-red:#E01E5A;--cream:#F4EDE4;
+    --border:rgba(29,28,29,0.13);--border-strong:rgba(29,28,29,0.3);
+    --link:#1264A3;--green:#007A5A;--hover:#F8F8F8;--sel:#F2F7FD;
+    --chip:#F8F8F8;--annot:#7C3085;
+    --font:'Lato','Slack-Lato',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--font);background:#2B092C;color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.46;display:flex;flex-direction:column;overflow:hidden}
+
+  .ic{width:16px;height:16px;display:inline-block;vertical-align:-3px;flex:none}
+  .ic.xs{width:13px;height:13px;vertical-align:-2px}
+  .ic.sm{width:15px;height:15px}
+  .ic.lg{width:19px;height:19px;vertical-align:-4px}
+
+  /* ---------- guide bar ---------- */
+  .guide{flex:none;background:var(--brand);color:#E8DDE9;padding:10px 18px;display:flex;align-items:center;gap:14px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.08);z-index:50}
+  .guide .brand{font-weight:900;color:#fff;letter-spacing:.02em;white-space:nowrap;display:flex;align-items:center;gap:9px}
+  .guide .brand span{color:rgba(255,255,255,.6);font-weight:600}
+  .steps{display:flex;gap:5px}
+  .stepdot{width:22px;height:22px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4);color:rgba(255,255,255,.75);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;transition:all .25s}
+  .stepdot.cur{background:#fff;border-color:#fff;color:var(--aubergine)}
+  .stepdot.done{background:var(--s-green);border-color:var(--s-green);color:#fff}
+  .hint{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hint b{color:#fff}
+  .hint .pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--s-green);margin-right:8px;animation:pul 1.4s infinite}
+  @keyframes pul{0%,100%{opacity:1}50%{opacity:.3}}
+  .restart{flex:none;background:transparent;border:1px solid rgba(255,255,255,.4);color:#E8DDE9;border-radius:5px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font)}
+  .restart:hover{background:rgba(255,255,255,.08)}
+
+  /* ---------- slack window ---------- */
+  .stage{flex:1;min-height:0;padding:14px;display:flex}
+  .slack{position:relative;flex:1;min-height:0;background:#fff;border-radius:9px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.5)}
+
+  /* in-app download toast */
+  .dltoast{position:absolute;right:14px;bottom:14px;background:#1B1D21;color:#fff;border-radius:10px;padding:13px 18px 13px 14px;display:flex;gap:13px;min-width:255px;box-shadow:0 8px 28px rgba(0,0,0,.45);z-index:80;opacity:0;transform:translateY(10px);transition:opacity .25s,transform .25s}
+  .dltoast.show{opacity:1;transform:none}
+  .dlic{position:relative;flex:none;align-self:flex-start}
+  .dlbadge{position:absolute;bottom:-5px;left:-5px;width:17px;height:17px;border-radius:50%;background:#1B1D21;display:flex;align-items:center;justify-content:center;color:#fff}
+  .dlbadge .ic{width:9px;height:9px}
+  .spin.sm{width:9px;height:9px;border-width:2px;border-color:rgba(255,255,255,.35);border-top-color:#fff}
+  .dlname{font-size:13.5px;font-weight:800}
+  .dltype{font-size:12.5px;color:#B6B9BE;margin-top:1px}
+  .dlall{font-size:13px;margin-top:10px;cursor:pointer}
+  .dlall:hover{text-decoration:underline}
+  .topbar{flex:none;position:relative;background:var(--aubergine-top);height:46px;display:flex;align-items:center;padding:0 14px;gap:11px;color:rgba(255,255,255,.8)}
+  .tnav{display:flex;align-items:center;color:rgba(255,255,255,.85);cursor:pointer}
+  .tnav.dim{opacity:.4}
+  .tb-av{width:24px;height:24px;border-radius:5px;overflow:hidden;position:relative}
+  .tb-av svg{display:block;width:100%;height:100%}
+  .tb-user{margin-left:auto;display:flex;align-items:center;gap:5px;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:3px 6px;color:rgba(255,255,255,.85);cursor:pointer}
+  .traffic{display:flex;gap:7px}
+  .traffic i{width:11px;height:11px;border-radius:50%;display:block}
+  .traffic i:nth-child(1){background:#EE6A5F}.traffic i:nth-child(2){background:#F5BD4F}.traffic i:nth-child(3){background:#61C454}
+  .searchbar{position:absolute;left:50%;transform:translateX(-50%);width:42%;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.16);border-radius:8px;height:28px;display:flex;align-items:center;padding:0 11px;gap:8px;color:rgba(255,255,255,.8);font-size:13px}
+  .searchbar .grow{flex:1}
+  .winbody{flex:1;min-height:0;display:flex}
+
+  /* app rail */
+  .rail{flex:none;width:68px;background:var(--aubergine-top);display:flex;flex-direction:column;align-items:center;padding:8px 0 14px;gap:9px;overflow:hidden}
+  .rail-ws{width:36px;height:36px;border-radius:10px;background:#211A23;display:flex;align-items:center;justify-content:center;margin-bottom:5px;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.14)}
+  .ritem{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.88);cursor:pointer}
+  .rico{width:36px;height:33px;border-radius:9px;display:flex;align-items:center;justify-content:center;position:relative;color:#fff}
+  .ritem:hover .rico{background:rgba(255,255,255,.12)}
+  .ritem.cur .rico{background:rgba(255,255,255,.94);color:#3B173C}
+  .rbadge{position:absolute;top:-4px;right:-6px;background:var(--aubergine-top);border:1px solid rgba(255,255,255,.85);color:#fff;font-size:9.5px;font-weight:800;font-style:normal;border-radius:9px;padding:0 4px;line-height:13px}
+  .rail-grow{flex:1}
+  .rail-btn{flex:none;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.13);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .rail-btn:hover{background:rgba(255,255,255,.22)}
+  .rail-me{flex:none;width:32px;height:32px;border-radius:8px;position:relative;cursor:pointer;margin-top:2px}
+  .rail-me svg{display:block;width:100%;height:100%;border-radius:8px}
+  .rail-me::after{content:"";position:absolute;right:-3px;bottom:-3px;width:10px;height:10px;border-radius:50%;background:var(--s-green);border:2.5px solid var(--aubergine-top)}
+
+  /* sidebar */
+  .sidebar{flex:none;width:252px;background:var(--aubergine);color:var(--sidebar-text);padding:2px 0 14px;font-size:15px;overflow:hidden;display:flex;flex-direction:column}
+  .sav{width:20px;height:20px;border-radius:4px;overflow:hidden;flex:none}
+  .sav svg{display:block;width:100%;height:100%}
+  .ws{display:flex;align-items:center;justify-content:space-between;color:#fff;font-weight:900;font-size:17px;padding:9px 14px 6px}
+  .ws-actions{display:flex;align-items:center;gap:15px;color:rgba(255,255,255,.82);font-weight:400;cursor:pointer}
+  .findbar{flex:none;margin:3px 10px 8px;background:rgba(0,0,0,.18);border-radius:8px;padding:6px 10px;font-size:13.5px;color:rgba(255,255,255,.72);display:flex;align-items:center;gap:8px;cursor:text}
+  .slists{flex:1;min-height:0;overflow:hidden;position:relative;padding-top:4px}
+  .mentions-pill{position:absolute;top:3px;left:50%;transform:translateX(-50%);background:#fff;color:#4D2A4F;font-size:12.5px;font-weight:800;border-radius:999px;padding:5px 13px;display:flex;align-items:center;gap:6px;box-shadow:0 3px 10px rgba(0,0,0,.35);z-index:5;white-space:nowrap;cursor:pointer}
+  .sect{margin-top:10px}
+  .sect:first-of-type{margin-top:0}
+  .sitem{margin:0 8px;padding:3px 8px;border-radius:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:8px;cursor:pointer}
+  .sitem:hover:not(.hd):not(.active){background:rgba(255,255,255,.09)}
+  .sitem.hd{opacity:.82;cursor:default}
+  .sitem.unread{color:#fff;font-weight:800}
+  .sitem.active{background:#fff;color:#232127;font-weight:700}
+  .gdm{width:20px;height:20px;border-radius:5px;background:rgba(0,0,0,.32);font-size:11.5px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+  .you{opacity:.62;font-size:13px}
+  .stemoji{font-size:12.5px}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;background:#fff}
+  .chead{flex:none;padding:6px 16px 0;border-bottom:1px solid var(--border)}
+  .chrow{display:flex;align-items:center;gap:9px;padding:5px 0 7px}
+  .ch-star{color:var(--sec);display:flex;align-items:center;cursor:pointer}
+  .ch-star:hover{color:var(--ink)}
+  .chrow .sav{width:22px;height:22px;border-radius:5px}
+  .ch-name{font-weight:900;font-size:17px;color:var(--ink)}
+  .ch-right{margin-left:auto;display:flex;align-items:center;gap:16px;color:var(--sec)}
+  .ch-right span{cursor:pointer;display:flex;align-items:center}
+  .ch-right span:hover{color:var(--ink)}
+  .ctabs{display:flex;gap:2px}
+  .ctab{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--sec);padding:5px 9px 9px;cursor:pointer;position:relative;border-radius:5px 5px 0 0}
+  .ctab:hover{color:var(--ink)}
+  .ctab.cur{color:var(--ink)}
+  .ctab.cur::after{content:"";position:absolute;left:6px;right:6px;bottom:0;height:2px;background:var(--ink);border-radius:2px 2px 0 0}
+  .appb{font-size:10px;font-weight:700;color:var(--sec);background:var(--chip);border:1px solid var(--border);border-radius:3px;padding:0 4px}
+  .csub{font-size:12.5px;color:var(--sec)}
+
+  /* DM conversation-start header */
+  .dmstart{padding:26px 0 10px;margin-top:auto}
+  .dm-top{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+  .dm-av{flex:none;width:96px;height:96px;border-radius:14px;overflow:hidden}
+  .dm-av svg{display:block;width:100%;height:100%}
+  .dm-name{display:flex;align-items:center;gap:8px;font-size:22px;font-weight:900;color:var(--ink)}
+  .dm-name .appb{position:relative;top:1px}
+  .dm-name .presdot{width:10px;height:10px;border-radius:50%;background:var(--s-green)}
+  .dm-text{font-size:15px;color:var(--ink);margin-bottom:12px}
+  .mention{color:var(--link);background:#E8F5FA;border-radius:3px;padding:0 2px}
+  .dm-tip{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink)}
+  .dm-tip a{color:var(--link);text-decoration:none;cursor:pointer}
+  .dm-tip a:hover{text-decoration:underline}
+  #msgs{flex:1;min-height:0;overflow-y:auto;padding:18px 20px 8px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+  .msg{display:flex;gap:10px;animation:fadein .25s ease-out}
+  @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .avatar{flex:none;width:38px;height:38px;border-radius:5px;overflow:hidden}
+  .avatar svg{display:block;width:100%;height:100%}
+  .mbody{min-width:0;flex:1}
+  .mhead{display:flex;align-items:baseline;gap:7px;margin-bottom:1px}
+  .mname{font-weight:900;font-size:14.5px}
+  .mtime{font-size:12px;color:var(--ter)}
+  .mtext{font-size:14.5px;max-width:72ch}
+  .mtext .hl{font-weight:700}
+
+  /* thinking card */
+  .thinkcard{margin-top:6px;max-width:680px;display:flex;align-items:center;gap:10px;border:1px solid var(--border-strong);border-radius:10px;padding:11px 14px;background:#fff}
+  .spin{flex:none;width:16px;height:16px;border-radius:50%;border:2.2px solid #ECE2F4;border-top-color:#B48CD9;animation:spn .9s linear infinite}
+  @keyframes spn{to{transform:rotate(360deg)}}
+  .think-txt{font-size:14.5px;font-weight:700;background:linear-gradient(90deg,#C7A4DE 25%,#E9DBF4 50%,#C7A4DE 75%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:tsh 1.8s linear infinite}
+  @keyframes tsh{0%{background-position:200% 0}100%{background-position:0 0}}
+  .tchev{margin-left:auto;color:var(--ink);display:flex;align-items:center}
+
+  /* data table (Block Kit data-table style) */
+  .dt{position:relative;margin-top:10px;max-width:680px}
+  .dt-toprow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .dt-caption{font-size:15px;font-weight:800;display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap;overflow:hidden;margin-bottom:0}
+  .dt-caption .cn{font-weight:400;color:var(--ter);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .dt-tools{display:flex;align-items:center;gap:8px;flex:none}
+  .dt-filter{display:flex;align-items:center;gap:7px;border:1px solid #C9C9C9;border-radius:999px;padding:7px 13px;font-size:13.5px;color:var(--ter);width:205px;background:#fff}
+  .dt-filter>svg{color:var(--ink)}
+  .dt-filter input{border:none;outline:none;font-family:var(--font);font-size:13.5px;width:100%;color:var(--ink);background:transparent}
+  .dt-filter input::placeholder{color:#696969}
+  .dt-iconbtn{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid #C9C9C9;border-radius:10px;color:var(--ink);cursor:pointer;padding:0;font-family:var(--font)}
+  .dt-iconbtn:hover{background:var(--hover)}
+  .dt-shell{background:#F6F6F6;border-radius:14px;padding:2px 0 8px}
+  .dhead{display:grid;background:transparent;margin:0 6px}
+  .hcell{font-size:13px;font-weight:700;color:var(--ink);padding:11px 12px 9px;cursor:pointer;user-select:none;white-space:nowrap;overflow:hidden}
+  .hcell .si{margin-left:5px;opacity:0;color:var(--ink)}
+  .hcell .si .ic{width:12px;height:12px;vertical-align:-1.5px}
+  .hcell:hover .si{opacity:.45}
+  .hcell.sorted{color:var(--ink)}
+  .hcell.sorted .si{opacity:1}
+  .drows{background:#fff;border:1px solid #D9D9D9;border-radius:10px;margin:0 6px;overflow:hidden}
+  .drow{display:grid;background:#fff;border-top:1px solid #E8E8E8}
+  .drow:first-child{border-top:none}
+  .drow:hover{background:var(--hover)}
+  .drow.sel{background:var(--sel)}
+  .drow.sel .dcell:first-child{box-shadow:inset 3px 0 0 var(--active)}
+  .dcell{position:relative;font-size:15px;padding:13px 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dcell .xbtn{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:22px;height:22px;border:1px solid var(--border-strong);border-radius:6px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15);font-size:11px;align-items:center;justify-content:center;cursor:pointer;display:none;color:#1D1C1D}
+  .dcell.truncated:hover .xbtn{display:flex}
+  .cellpop{position:absolute;z-index:25;background:#fff;border:1px solid #B9B9B9;border-radius:4px;padding:9px 12px;font-size:14px;box-shadow:0 4px 14px rgba(0,0,0,.16);max-width:280px;white-space:normal;line-height:1.4}
+
+  .dcell a{color:var(--ink);text-decoration:none;font-weight:400;cursor:pointer}
+  .dcell a:hover{text-decoration:underline}
+  .dcell .mention{color:var(--link);background:#E8F5FA;border-radius:3px;padding:0 2px;font-weight:500}
+  .dt-modal-scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:22px}
+  .dt-modal{background:#fff;border-radius:10px;width:min(1200px,95vw);max-height:93vh;overflow:auto;padding:20px 24px;box-shadow:0 12px 48px rgba(0,0,0,.4)}
+  .dtm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .dtm-title{font-size:20px;font-weight:900}
+  .dtm-x{cursor:pointer;font-size:17px;color:#616061;padding:4px 6px}
+  .dtm-x:hover{color:#1D1C1D}
+  .dtm-filter{display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:8px;padding:8px 12px;font-size:14px;color:#868686;margin-bottom:14px}
+  .dtm-filter input{flex:1;border:none;outline:none;font-family:inherit;font-size:14px;color:#1D1C1D}
+  .dtm-table{border:none;border-radius:14px;overflow:hidden;background:#F6F6F6;padding:2px 0 8px}
+  .dtm-hrow{display:grid;background:transparent;margin:0 6px}
+  .dtm-hcell{font-size:13px;font-weight:700;padding:11px 14px 9px;cursor:pointer;user-select:none}
+  .dtm-hcell.sorted{color:var(--ink)}
+  .dtm-hcell .si .ic{width:12px;height:12px;vertical-align:-1.5px}
+  .dtm-body{background:#fff;border:1px solid #D9D9D9;border-radius:10px;margin:0 6px;overflow:hidden}
+  .dtm-row{display:grid;border-top:1px solid #E8E8E8}
+  .dtm-row:first-child{border-top:none}
+  .dtm-row:hover{background:#F8F8F8}
+  .dtm-cell{font-size:15px;padding:13px 14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dtm-cell a{color:var(--ink);text-decoration:none;font-weight:400;cursor:pointer}
+  .dtm-cell a:hover{text-decoration:underline}
+  .dtm-cell .mention{color:#1264A3;background:#E8F5FA;border-radius:3px;padding:0 2px;font-weight:500}
+  mark.fhl{background:#FDE9A8;color:inherit;border-radius:2px;padding:0}
+  .dt-filter:focus-within,.dtm-filter:focus-within{border-color:#1264A3;box-shadow:0 0 0 3px rgba(29,155,209,.25)}
+  .fclear{font-size:12px;color:#616061;cursor:pointer;flex:none}
+  .fclear:hover{text-decoration:underline}
+  .sm-opt:hover{background:#1164A3;color:#fff}
+  .sm-opt .smi{width:16px;text-align:center}
+  .sortmenu{position:absolute;z-index:30;background:#fff;border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.14);min-width:190px;padding:6px 0}
+  .sm-label{font-size:12px;color:#868686;padding:5px 16px}
+  .sm-opt{font-size:14px;padding:6px 16px;cursor:pointer;display:flex;gap:10px;align-items:center}
+  .dt-pager{display:flex;justify-content:center;align-items:center;gap:4px;padding:9px 0 0}
+  .dt-pager .chev{border:none;background:none;color:var(--sec);font-size:14px;cursor:pointer;padding:2px 7px;font-family:var(--font)}
+  .dt-pager .chev:disabled{opacity:.3;cursor:default}
+  .pgn{min-width:26px;height:26px;border:none;border-radius:6px;background:transparent;color:var(--sec);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)}
+  .pgn:hover{background:var(--hover)}
+  .pgn.cur{background:#00553D;color:#fff}
+  .pgn.cur:hover{background:#00553D}
+
+  .ctx{margin-top:8px;font-size:12px;color:var(--ter)}
+  .btnrow{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .sbtn{font-family:var(--font);font-size:13px;font-weight:700;border-radius:4px;padding:6px 12px;cursor:pointer;border:1px solid var(--border-strong);background:#fff;color:var(--ink)}
+  .sbtn:hover{background:var(--hover)}
+  .fup{margin-top:10px;font-size:14.5px;color:var(--ink)}
+  .gnote{margin:14px 0 2px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ter)}
+  .gnote .soft{font-weight:400;text-transform:none;letter-spacing:0}
+  .moreg{margin-top:10px;font-size:13px;color:var(--link);font-weight:600;cursor:pointer}
+  .moreg:hover{text-decoration:underline}
+
+  .filecard{margin-top:10px;max-width:440px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;gap:11px;align-items:center;background:#fff}
+  .fic{flex:none;width:36px;height:38px;border-radius:6px;background:#1A9345;color:#fff;font-size:9px;font-weight:800;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px}
+  .fname{font-size:13.5px;font-weight:700}
+  .fmeta{font-size:12px;color:var(--sec)}
+  .toast{margin-top:8px;font-size:12.5px;color:var(--green);font-weight:700}
+  .finder{margin-top:8px;font-size:12.5px;color:var(--green);font-weight:700;display:flex;align-items:center;gap:5px}
+  .finder .sep{color:var(--ter);font-weight:400}
+  .finder a{color:var(--link);font-weight:600;cursor:pointer;text-decoration:none}
+  .finder a:hover{text-decoration:underline}
+
+  /* composer */
+  .composer{flex:none;margin:8px 20px 16px;border:1px solid var(--border-strong);border-radius:12px;overflow:hidden}
+  .c-fmt{display:flex;align-items:center;gap:2px;padding:6px 8px;background:#F8F8F8;color:#A5A4A6}
+  .c-fmt .fbt{width:26px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:13.5px;font-weight:700}
+  .c-fmt .fbt:hover{background:#EDEDED;color:var(--sec)}
+  .c-fmt .fsep{width:1px;height:16px;background:#DDD;margin:0 5px}
+  .c-mid{display:flex;align-items:center}
+  .composer input{flex:1;border:none;outline:none;font-family:var(--font);font-size:14.5px;padding:10px 12px 6px;color:var(--ink);background:transparent}
+  .composer input::placeholder{color:var(--ter)}
+  .c-bottom{display:flex;align-items:center;gap:4px;padding:4px 8px 8px;color:#5E5D60}
+  .c-bottom .fbt{width:26px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:4px}
+  .c-bottom .fbt:hover{background:#F0F0F0}
+  .c-bottom .plusc{width:22px;height:22px;border-radius:50%;background:#EDEDED;display:flex;align-items:center;justify-content:center;margin-right:2px}
+  .send{flex:none;margin-left:auto;width:34px;height:26px;border:none;border-radius:4px;background:#E8E8E8;color:#999;cursor:default;transition:all .15s;display:flex;align-items:center;justify-content:center}
+  .send.ready{background:var(--green);color:#fff;cursor:pointer}
+
+  /* flexpane */
+  .flexpane{flex:none;width:0;overflow:hidden;border-left:1px solid var(--border);background:#fff;display:flex;flex-direction:column;transition:width .25s ease}
+  .flexpane.open{width:320px}
+  .fphead{flex:none;display:flex;align-items:center;justify-content:space-between;padding:13px 16px 11px;font-weight:900;font-size:15.5px;white-space:nowrap}
+  .fpx{color:var(--sec);cursor:pointer;font-size:16px;padding:0 4px}
+  .fpx:hover{color:var(--ink)}
+  .fpbody{flex:1;overflow-y:auto;padding:0 16px 16px;min-width:288px}
+  .fp-photo{width:calc(100% - 24px);margin:2px 12px 14px;border-radius:6px;overflow:hidden}
+  .fp-photo svg{display:block;width:100%;height:auto}
+  .fp-name{font-size:21px;font-weight:900}
+  .fp-role{font-size:15px;margin-top:1px}
+  .fp-status{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:11px}
+  .fpdot{width:9px;height:9px;border-radius:50%;background:#2BAC76}
+  .fp-meta{margin-top:13px;display:flex;flex-direction:column;gap:10px;font-size:14px}
+  .fp-meta .row{display:flex;gap:9px;align-items:center}
+  .fp-meta .row .ic{color:var(--ink)}
+  .fp-meta a{color:var(--link);text-decoration:none;cursor:pointer}
+  .fp-meta a:hover{text-decoration:underline}
+  .fp-actions{display:flex;gap:6px;margin:15px 0 16px}
+  .fpbtn{display:flex;align-items:center;gap:5px;border:1px solid var(--border-strong);border-radius:8px;background:#fff;padding:6px 8px;font-size:12.5px;font-weight:700;font-family:var(--font);color:var(--ink);cursor:pointer;white-space:nowrap}
+  .fpbtn:hover{background:var(--hover)}
+  .fp-sect{border-top:1px solid var(--border);margin:14px -16px 0;padding:14px 16px 2px}
+  .fp-h{font-size:15px;font-weight:800;margin-bottom:11px}
+  .fp-item{display:flex;gap:11px;margin-bottom:13px;align-items:center}
+  .fp-itile{flex:none;width:34px;height:34px;border-radius:6px;background:#F6F6F6;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+  .fp-lab{font-size:12.5px;font-weight:700;color:#454245}
+  .fp-val{font-size:14px;margin-top:1px}
+  .fp-val a{color:var(--link);text-decoration:none;cursor:pointer}
+  .fp-val a:hover{text-decoration:underline}
+  .fp-mgr{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+  .fp-mav{flex:none;width:36px;height:36px;border-radius:6px;overflow:hidden}
+  .fp-mav svg{display:block;width:100%;height:100%}
+  .fp-mn{font-size:14.5px;font-weight:800}
+  .fp-mt{font-size:13px;color:var(--sec)}
+  .fp-af{font-size:14.5px;margin:1px 0 11px}
+  /* row streaming (first render) */
+  .drow.ldg .dcell{color:transparent!important;pointer-events:none}
+  .drow.ldg .dcell *{visibility:hidden}
+  .drow.ldg .dcell::before{content:'';position:absolute;left:12px;top:50%;transform:translateY(-50%);height:12px;width:70%;border-radius:6px;
+    background:linear-gradient(90deg,#E8E8E8 25%,#F6F6F6 50%,#E8E8E8 75%);background-size:200% 100%;animation:dtshim 1s linear infinite}
+  .drow.ldg .dcell:nth-child(1)::before{width:58%}
+  .drow.ldg .dcell:nth-child(2)::before{width:74%}
+  .drow.ldg .dcell:nth-child(3)::before{width:48%}
+  .drow.ldg .dcell:nth-child(4)::before{width:64%}
+  .drow.ldg .dcell:nth-child(5)::before{width:54%}
+  .drow.rvl .dcell{animation:dtrvl .18s ease}
+  @keyframes dtshim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  @keyframes dtrvl{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="guide">
+  <div class="brand"><span data-slacklogo></span>Table in Slack <span>· live prototype</span></div>
+  <div class="steps" id="stepdots"></div>
+  <div class="hint" id="hint"></div>
+  <button class="restart" onclick="demo.restart()">↺ Restart</button>
+</div>
+
+<div class="stage">
+<div class="slack">
+  <div class="topbar">
+    <div class="traffic"><i></i><i></i><i></i></div>
+    <span class="tnav" data-ic="arrleft" data-cls="lg"></span>
+    <span class="tnav dim" data-ic="arrright" data-cls="lg"></span>
+    <span class="tnav" data-ic="clock" data-cls="lg"></span>
+    <div class="searchbar"><span data-ic="search" data-cls="xs"></span><span class="grow">Describe what you are looking for</span></div>
+    <div class="tb-user"><span class="tb-av" data-av="sam"></span><span data-ic="chevd" data-cls="xs"></span></div>
+    <span class="tnav" data-ic="help" data-cls="lg"></span>
+  </div>
+  <div class="winbody">
+    <div class="rail">
+      <div class="rail-ws"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.2,11.4 v-3.7 l1.9,2.3 1.9,-2.3 1.9,2.3 1.9,-2.3 v3.7"/><path d="M8.2,13.6 l1.6,4.1 2.2,-3.1 2.2,3.1 1.6,-4.1"/></svg></div>
+      <div class="ritem cur"><span class="rico" data-ic="house" data-cls="lg"></span>Home</div>
+      <div class="ritem"><span class="rico" data-ic="dms" data-cls="lg"></span>DMs</div>
+      <div class="ritem"><span class="rico"><span data-ic="bell" data-cls="lg"></span><i class="rbadge">2</i></span>Activity</div>
+      <div class="ritem"><span class="rico" data-ic="folder" data-cls="lg"></span>Files</div>
+      <div class="ritem"><span class="rico" data-ic="dotsh" data-cls="lg"></span>More</div>
+      <div class="rail-grow"></div>
+      <div class="rail-btn" data-ic="plus" data-cls="sm"></div>
+      <div class="rail-btn" data-ic="moon" data-cls="sm"></div>
+      <div class="rail-me" data-av="sam"></div>
+    </div>
+    <div class="sidebar">
+      <div class="ws"><span>Moveworks <span data-ic="chevd" data-cls="xs"></span></span><span class="ws-actions"><span data-ic="gear" data-cls="sm"></span><span data-ic="compose" data-cls="sm"></span></span></div>
+      <div class="findbar"><span data-ic="search" data-cls="xs"></span>Find a conversation...</div>
+      <div class="slists">
+        <div class="mentions-pill"><span data-ic="arrup" data-cls="xs"></span>Unread mentions</div>
+        <div class="sect">
+          <div class="sitem"><span data-ic="hash"></span>random</div>
+          <div class="sitem"><span data-ic="hash"></span>sales-wins</div>
+          <div class="sitem"><span data-ic="lock"></span>significant-ux-change</div>
+          <div class="sitem"><span data-ic="hash"></span>simply-ai</div>
+          <div class="sitem"><span data-ic="hash"></span>simply-magic</div>
+          <div class="sitem"><span data-ic="hash"></span>social</div>
+          <div class="sitem unread"><span data-ic="hash"></span>support-m8</div>
+          <div class="sitem"><span data-ic="plus"></span>Add channels</div>
+        </div>
+        <div class="sect">
+          <div class="sitem hd"><span data-ic="dms" data-cls="xs"></span>Direct messages</div>
+          <div class="sitem"><span class="sav" data-av="p1"></span>Saloni Dandavate</div>
+          <div class="sitem"><span class="gdm">2</span>Ivy Wang, Saloni Dandavate</div>
+          <div class="sitem"><span class="sav" data-av="p2"></span>Lin Li</div>
+          <div class="sitem"><span class="gdm">2</span>Manas Chhabra, Saloni D...</div>
+          <div class="sitem"><span class="gdm">2</span>Ivy Wang, Michael Martz</div>
+          <div class="sitem"><span class="sav" data-av="p3"></span>Ivy Wang</div>
+          <div class="sitem"><span class="sav" data-av="p4"></span>Jason Wang</div>
+          <div class="sitem"><span class="sav" data-av="p5"></span>Xindi Wang</div>
+          <div class="sitem"><span class="sav" data-av="sam"></span>Sam Okafor <span class="you">you</span> <span class="stemoji">🧳</span></div>
+          <div class="sitem"><span class="gdm" data-ic="person" data-cls="xs"></span>Browse all people</div>
+        </div>
+        <div class="sect">
+          <div class="sitem hd"><span data-ic="grid" data-cls="xs"></span>Agents &amp; apps</div>
+          <div class="sitem"><span class="sav" data-av="p6"></span>bot-jehova</div>
+          <div class="sitem active"><span class="sav" data-av="bot"></span>m8</div>
+          <div class="sitem"><span class="sav" data-av="slack"></span>Slack</div>
+        </div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="chead">
+        <div class="chrow">
+          <span class="ch-star" data-ic="star" data-cls="sm"></span>
+          <span class="sav" data-av="bot"></span>
+          <span class="ch-name">m8</span>
+          <span class="ch-right"><span data-ic="bell" data-cls="sm"></span><span data-ic="dotsv" data-cls="sm"></span></span>
+        </div>
+        <div class="ctabs">
+          <span class="ctab cur"><span data-ic="threads" data-cls="xs"></span>Messages</span>
+          <span class="ctab"><span data-ic="info" data-cls="xs"></span>About</span>
+        </div>
+      </div>
+      <div id="msgs"></div>
+      <div class="composer">
+        <div class="c-fmt"><span class="fbt">B</span><span class="fbt" style="font-style:italic">I</span><span class="fbt" style="text-decoration:line-through">S</span><span class="fsep"></span><span class="fbt" data-ic="link" data-cls="xs"></span><span class="fsep"></span><span class="fbt" data-ic="listol" data-cls="xs"></span><span class="fbt" data-ic="listul" data-cls="xs"></span><span class="fsep"></span><span class="fbt" data-ic="code" data-cls="xs"></span></div>
+        <div class="c-mid"><input id="cinput" placeholder="Message m8" autocomplete="off"></div>
+        <div class="c-bottom"><span class="plusc" data-ic="plus" data-cls="xs"></span><span class="fbt" style="font-size:12.5px;font-weight:700;text-decoration:underline">Aa</span><span class="fbt" data-ic="emoji" data-cls="sm"></span><span class="fbt" data-ic="at" data-cls="sm"></span><span class="fsep" style="width:1px;height:16px;background:#DDD"></span><span class="fbt" data-ic="video" data-cls="sm"></span><span class="fbt" data-ic="mic" data-cls="sm"></span><button id="csend" class="send" data-ic="send" data-cls="sm"></button></div>
+      </div>
+    </div>
+    <div class="flexpane" id="flexpane">
+      <div class="fphead">Profile <span class="fpx" onclick="demo.closePane()" data-ic="close" data-cls="sm"></span></div>
+      <div class="fpbody" id="fpbody"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ================= Slack kit: icons, logo, avatars ================= */
+const IC={
+ search:'<circle cx="11" cy="11" r="6.2"/><line x1="15.6" y1="15.6" x2="20" y2="20"/>',
+ clock:'<circle cx="12" cy="12" r="8.2"/><polyline points="12,7.6 12,12 15.2,13.9"/>',
+ sliders:'<line x1="4" y1="7.5" x2="20" y2="7.5"/><circle cx="9.5" cy="7.5" r="1.8" fill="#fff" stroke="currentColor"/><line x1="4" y1="15.5" x2="20" y2="15.5"/><circle cx="15" cy="15.5" r="1.8" fill="#fff" stroke="currentColor"/>',
+ help:'<circle cx="12" cy="12" r="8.2"/><path d="M9.7,9.4 C9.7,8 10.8,7 12.2,7 C13.6,7 14.6,7.9 14.6,9.2 C14.6,11 12.2,11.2 12.2,13"/><circle cx="12.2" cy="16.2" r="1" fill="currentColor" stroke="none"/>',
+ compose:'<path d="M12,5.5 H7 A2.5,2.5 0 0 0 4.5,8 v9 A2.5,2.5 0 0 0 7,19.5 h9 a2.5,2.5 0 0 0 2.5,-2.5 V12"/><path d="M17.6,4.4 a2,2 0 0 1 2.8,2.8 L12.4,15.2 L9,16 l.8,-3.4 z"/>',
+ hash:'<line x1="9.6" y1="4.5" x2="7.8" y2="19.5"/><line x1="16.2" y1="4.5" x2="14.4" y2="19.5"/><line x1="5" y1="9.2" x2="19.6" y2="9.2"/><line x1="4.4" y1="14.8" x2="19" y2="14.8"/>',
+ lock:'<rect x="6" y="10.6" width="12" height="9" rx="2"/><path d="M9,10.6 V8 a3,3 0 0 1 6,0 v2.6"/>',
+ chevd:'<polyline points="6.5,9.5 12,15 17.5,9.5"/>',
+ chevl:'<polyline points="14.5,6 8.5,12 14.5,18"/>',
+ chevr:'<polyline points="9.5,6 15.5,12 9.5,18"/>',
+ plus:'<line x1="12" y1="5.5" x2="12" y2="18.5"/><line x1="5.5" y1="12" x2="18.5" y2="12"/>',
+ dotsv:'<circle cx="12" cy="6.6" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="17.4" r="1.6" fill="currentColor" stroke="none"/>',
+ dotsh:'<circle cx="6" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.7" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.7" fill="currentColor" stroke="none"/>',
+ arrleft:'<line x1="19" y1="12" x2="5.5" y2="12"/><polyline points="11,5.5 4.5,12 11,18.5"/>',
+ arrright:'<line x1="5" y1="12" x2="18.5" y2="12"/><polyline points="13,5.5 19.5,12 13,18.5"/>',
+ house:'<path d="M4.8,11.2 L12,4.6 l7.2,6.6 V18.6 a1.6,1.6 0 0 1 -1.6,1.6 h-3.3 v-5.6 h-4.6 v5.6 H6.4 a1.6,1.6 0 0 1 -1.6,-1.6 z"/>',
+ dms:'<path d="M4.6,8.2 a3.6,3.6 0 0 1 3.6,-3.6 h7.6 a3.6,3.6 0 0 1 3.6,3.6 v4.6 a3.6,3.6 0 0 1 -3.6,3.6 h-5.2 L6.2,19.8 v-3.6 a3.6,3.6 0 0 1 -1.6,-3 z"/>',
+ folder:'<path d="M4,7.2 a2,2 0 0 1 2,-2 h4 l2,2.4 h6 a2,2 0 0 1 2,2 v7.2 a2,2 0 0 1 -2,2 H6 a2,2 0 0 1 -2,-2 z"/>',
+ moon:'<path d="M19.6,14.6 A8.2,8.2 0 1 1 9.4,4.4 a6.6,6.6 0 0 0 10.2,10.2 z"/>',
+ person:'<circle cx="12" cy="8.3" r="3.5"/><path d="M5.8,19.4 a6.3,6.3 0 0 1 12.4,0"/>',
+ gear:'<circle cx="12" cy="12" r="3.1"/><circle cx="12" cy="12" r="6.7" stroke-width="2.9" stroke-dasharray="2.63 2.63"/>',
+ mail:'<rect x="4" y="5.5" width="16" height="13" rx="2"/><polyline points="4.8,7.2 12,12.6 19.2,7.2"/>',
+ phone:'<path d="M6.8,4.5 h2.8 l1.5,3.9 -2,1.6 a10.5,10.5 0 0 0 4.9,4.9 l1.6,-2 3.9,1.5 v2.8 a2,2 0 0 1 -2.2,2 A15,15 0 0 1 4.8,6.7 a2,2 0 0 1 2,-2.2 z"/>',
+ bldg:'<rect x="6.5" y="4.5" width="8.5" height="15" rx="1"/><path d="M15,9.5 h2.6 a1,1 0 0 1 1,1 v9"/><line x1="4.5" y1="19.5" x2="20.5" y2="19.5"/><path d="M9,7.8 h0.9 M11.7,7.8 h0.9 M9,10.8 h0.9 M11.7,10.8 h0.9 M9,13.8 h0.9 M11.7,13.8 h0.9"/>',
+ huddle:'<path d="M4.5,13.5 a7.5,7.5 0 0 1 15,0"/><rect x="4" y="12.8" width="3.4" height="5.6" rx="1.7"/><rect x="16.6" y="12.8" width="3.4" height="5.6" rx="1.7"/>',
+ vip:'<circle cx="10" cy="8.6" r="3.4"/><path d="M4.2,19.4 a5.9,5.9 0 0 1 11.6,0"/><line x1="18.6" y1="8.2" x2="18.6" y2="13.2"/><line x1="16.1" y1="10.7" x2="21.1" y2="10.7"/>',
+ expand:'<line x1="13.8" y1="10.2" x2="18.6" y2="5.4"/><polyline points="14.4,5.4 18.6,5.4 18.6,9.6"/><line x1="10.2" y1="10.2" x2="5.4" y2="5.4"/><polyline points="5.4,9.6 5.4,5.4 9.6,5.4"/><line x1="13.8" y1="13.8" x2="18.6" y2="18.6"/><polyline points="18.6,14.4 18.6,18.6 14.4,18.6"/><line x1="10.2" y1="13.8" x2="5.4" y2="18.6"/><polyline points="9.6,18.6 5.4,18.6 5.4,14.4"/>',
+ cellexp:'<line x1="7" y1="17" x2="17" y2="7"/><polyline points="11.6,7 17,7 17,12.4"/><polyline points="12.4,17 7,17 7,11.6"/>',
+ download:'<line x1="12" y1="4.5" x2="12" y2="14.5"/><polyline points="7.2,10.3 12,15.1 16.8,10.3"/><line x1="5" y1="19.5" x2="19" y2="19.5"/>',
+ close:'<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>',
+ send:'<path d="M3.6,20.2 L20.6,12 L3.6,3.8 L3.6,9.8 L14.6,12 L3.6,14.2 Z" fill="currentColor" stroke="none"/>',
+ copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5,15 V6.6 A2.6,2.6 0 0 1 7.6,4 H16"/>',
+ arrup:'<line x1="12" y1="19" x2="12" y2="5.5"/><polyline points="6.5,11 12,5.5 17.5,11"/>',
+ arrdn:'<line x1="12" y1="5" x2="12" y2="18.5"/><polyline points="6.5,13 12,18.5 17.5,13"/>',
+ external:'<path d="M13.8,5.2 H18.8 V10.2"/><line x1="18.8" y1="5.2" x2="11.5" y2="12.5"/><path d="M9.5,5.5 H7 A2,2 0 0 0 5,7.5 v9 a2,2 0 0 0 2,2 h9 a2,2 0 0 0 2,-2 V14"/>',
+ check:'<polyline points="5,13 10,18 19.4,7"/>',
+ threads:'<path d="M12,3.6 a8.4,8.4 0 0 1 0,16.8 c-1.3,0 -2.6,-.3 -3.7,-.9 L3.8,20.4 l1,-4.3 A8.4,8.4 0 0 1 12,3.6 z"/>',
+ drafts:'<path d="M20,4.5 L4.5,11 l5.8,1.9 L12.2,19 z"/><line x1="20" y1="4.5" x2="10.3" y2="12.9"/>',
+ canvas:'<rect x="4.5" y="4.5" width="15" height="15" rx="2.5"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="12.5" x2="16" y2="12.5"/><line x1="8" y1="16" x2="12.5" y2="16"/>',
+ link:'<path d="M10.2,13.8 a3.4,3.4 0 0 0 4.8,0 l3.2,-3.2 a3.4,3.4 0 0 0 -4.8,-4.8 l-1.6,1.6"/><path d="M13.8,10.2 a3.4,3.4 0 0 0 -4.8,0 l-3.2,3.2 a3.4,3.4 0 0 0 4.8,4.8 l1.6,-1.6"/>',
+ listol:'<line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/><path d="M4.6,4.5 h1.4 v3.4 M4.4,7.9 h3.2" stroke-width="1.4"/><path d="M4.4,14.7 c0,-2.4 3.2,-2.2 3.2,-.4 c0,1 -1.4,1.6 -3.2,3.3 h3.4" stroke-width="1.4"/>',
+ listul:'<circle cx="5.4" cy="6" r="1.4" fill="currentColor" stroke="none"/><circle cx="5.4" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="5.4" cy="18" r="1.4" fill="currentColor" stroke="none"/><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/>',
+ code:'<polyline points="8.5,7 4,12 8.5,17"/><polyline points="15.5,7 20,12 15.5,17"/>',
+ emoji:'<circle cx="12" cy="12" r="8.2"/><circle cx="9.2" cy="10" r="1.1" fill="currentColor" stroke="none"/><circle cx="14.8" cy="10" r="1.1" fill="currentColor" stroke="none"/><path d="M8.4,13.6 a4.6,4.6 0 0 0 7.2,0"/>',
+ at:'<circle cx="12" cy="12" r="3.6"/><path d="M15.6,12 v1.3 a2.5,2.5 0 0 0 5,0 A8.6,8.6 0 1 0 12,20.6 c1.7,0 3.3,-.5 4.6,-1.3"/>',
+ video:'<rect x="3.5" y="7" width="11.5" height="10" rx="2"/><path d="M15,10.8 l5.5,-2.8 v8 L15,13.2"/>',
+ mic:'<rect x="9.4" y="4" width="5.2" height="10.4" rx="2.6"/><path d="M6,12 a6,6 0 0 0 12,0"/><line x1="12" y1="18" x2="12" y2="20.5"/>',
+ grid:'<rect x="4.5" y="4.5" width="6.4" height="6.4" rx="1.6"/><rect x="13.1" y="4.5" width="6.4" height="6.4" rx="1.6"/><rect x="4.5" y="13.1" width="6.4" height="6.4" rx="1.6"/><rect x="13.1" y="13.1" width="6.4" height="6.4" rx="1.6"/>',
+ star:'<path d="M12,4.2 l2.35,4.85 5.35,.75 -3.9,3.75 .95,5.3 -4.75,-2.55 -4.75,2.55 .95,-5.3 -3.9,-3.75 5.35,-.75 Z"/>',
+ bell:'<path d="M12,4.4 a5.6,5.6 0 0 1 5.6,5.6 c0,3.9 1.7,5.1 1.7,5.1 H4.7 c0,0 1.7,-1.2 1.7,-5.1 A5.6,5.6 0 0 1 12,4.4 z"/><path d="M10,18.4 a2,2 0 0 0 4,0"/>',
+ info:'<circle cx="12" cy="12" r="8.2"/><line x1="12" y1="11.2" x2="12" y2="16.2"/><circle cx="12" cy="7.9" r="1.05" fill="currentColor" stroke="none"/>',
+ bulb:'<path d="M12,3.8 a5.7,5.7 0 0 1 3.3,10.35 c-.85.6 -1.3,1.35 -1.3,2.35 h-4 c0,-1 -.45,-1.75 -1.3,-2.35 A5.7,5.7 0 0 1 12,3.8 z"/><line x1="9.7" y1="19.3" x2="14.3" y2="19.3"/><line x1="10.4" y1="21.3" x2="13.6" y2="21.3"/>'
+};
+const svgI=(n,cls)=>'<svg class="ic'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(IC[n]||'')+'</svg>';
+const SLACK_LOGO='<svg style="width:18px;height:18px;display:block" viewBox="0 0 122.8 122.8"><path d="M25.8 77.6c0 7.1-5.8 12.9-12.9 12.9S0 84.7 0 77.6s5.8-12.9 12.9-12.9h12.9v12.9zM32.3 77.6c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9v32.3c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V77.6z" fill="#E01E5A"/><path d="M45.2 25.8c-7.1 0-12.9-5.8-12.9-12.9S38.1 0 45.2 0s12.9 5.8 12.9 12.9v12.9H45.2zM45.2 32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H12.9C5.8 58.1 0 52.3 0 45.2s5.8-12.9 12.9-12.9h32.3z" fill="#36C5F0"/><path d="M97 45.2c0-7.1 5.8-12.9 12.9-12.9s12.9 5.8 12.9 12.9-5.8 12.9-12.9 12.9H97V45.2zM90.5 45.2c0 7.1-5.8 12.9-12.9 12.9s-12.9-5.8-12.9-12.9V12.9C64.7 5.8 70.5 0 77.6 0s12.9 5.8 12.9 12.9v32.3z" fill="#2EB67D"/><path d="M77.6 97c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9-12.9-5.8-12.9-12.9V97h12.9zM77.6 90.5c-7.1 0-12.9-5.8-12.9-12.9s5.8-12.9 12.9-12.9h32.3c7.1 0 12.9 5.8 12.9 12.9s-5.8 12.9-12.9 12.9H77.6z" fill="#ECB22E"/></svg>';
+function avSil(bg,fg,rx){return '<svg viewBox="0 0 38 38"><rect width="38" height="38" rx="'+(rx===undefined?5:rx)+'" fill="'+bg+'"/><circle cx="19" cy="14.5" r="6.3" fill="'+(fg||'#fff')+'"/><path d="M6.6,38 a12.4,12.4 0 0 1 24.8,0 Z" fill="'+(fg||'#fff')+'"/></svg>'}
+function avClover(){
+  let leaves='';
+  for(const r of [0,90,180,270]) leaves+='<g transform="rotate('+r+')"><circle cx="-3" cy="-8.6" r="4.1" fill="#2EB67D"/><circle cx="3" cy="-8.6" r="4.1" fill="#2EB67D"/><path d="M-6.4,-6.2 Q0,-2.4 6.4,-6.2 L0,-0.6 Z" fill="#2EB67D"/></g>';
+  return '<svg viewBox="0 0 38 38"><rect width="38" height="38" rx="5" fill="#fff" stroke="#DDDDDD"/><g transform="translate(19,18.5) scale(0.92)">'+leaves+'<path d="M1,2 Q3,9 7.5,10.5" stroke="#185F34" stroke-width="1.6" fill="none" stroke-linecap="round"/></g></svg>';
+}
+function avRobot(){return '<svg viewBox="0 0 96 96">'
+ +'<defs><linearGradient id="m8scr" x1="0" y1="0" x2="0.55" y2="1"><stop offset="0" stop-color="#312F36"/><stop offset="0.55" stop-color="#1E1C21"/><stop offset="1" stop-color="#141317"/></linearGradient>'
+ +'<filter id="m8glow" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="2.6"/></filter></defs>'
+ +'<rect width="96" height="96" rx="14" fill="#E8E1D6"/>'
+ +'<rect x="31" y="55" width="34" height="29" rx="12" fill="#fff"/>'
+ +'<g stroke="#232127" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round">'
+ +'<path d="M43,71.8 v-4.2 l2.5,3.1 2.5,-3.1 v4.2"/>'
+ +'<path d="M42.6,74.6 l1.9,4.6 2,-3.4 2,3.4 1.9,-4.6"/></g>'
+ +'<rect x="17" y="9" width="62" height="55" rx="26" fill="#fff"/>'
+ +'<rect x="22" y="13.6" width="52" height="45.8" rx="21.5" fill="url(#m8scr)"/>'
+ +'<path d="M23.5,42 C40,49 58,42 73,27 L73,40 C58,55 38,56 23.5,49 Z" fill="#fff" opacity="0.045"/>'
+ +'<g fill="none" stroke-linecap="round">'
+ +'<rect x="33.5" y="26.5" width="9.5" height="20" rx="4.75" stroke="#8B5CF6" stroke-width="4.4" filter="url(#m8glow)" opacity="0.9"/>'
+ +'<rect x="53" y="26.5" width="9.5" height="20" rx="4.75" stroke="#8B5CF6" stroke-width="4.4" filter="url(#m8glow)" opacity="0.9"/>'
+ +'<rect x="33.5" y="26.5" width="9.5" height="20" rx="4.75" stroke="#C4A5FF" stroke-width="2.6"/>'
+ +'<rect x="53" y="26.5" width="9.5" height="20" rx="4.75" stroke="#C4A5FF" stroke-width="2.6"/>'
+ +'</g></svg>'}
+function avRobotProfile(){return avRobot()}
+function avSlackSq(){return '<svg viewBox="0 0 38 38"><rect width="38" height="38" rx="5" fill="#fff" stroke="#DDDDDD"/><g transform="translate(9.5,9.5) scale(0.155)">'+SLACK_LOGO.replace(/<svg[^>]*>|<\/svg>/g,'')+'</g></svg>'}
+const AV={sam:avSil('#ECB22E'),bot:avRobot(),slack:avSlackSq(),p1:avSil('#78D7DD','#fff'),p2:avSil('#FFB6BD','#fff'),p3:avSil('#8FA5E5'),p4:avSil('#5BA88C'),p5:avSil('#C39BD3'),p6:avSil('#4A90D9'),muyi:avSil('#D98CB3'),priya:avSil('#112377')};
+function applyKit(root){
+  (root||document).querySelectorAll('[data-ic]').forEach(n=>{n.innerHTML=svgI(n.dataset.ic,n.dataset.cls||'');n.removeAttribute('data-ic');});
+  (root||document).querySelectorAll('[data-av]').forEach(n=>{n.innerHTML=AV[n.dataset.av]||'';n.removeAttribute('data-av');});
+  (root||document).querySelectorAll('[data-slacklogo]').forEach(n=>{n.innerHTML=SLACK_LOGO;n.removeAttribute('data-slacklogo');});
+}
+
+/* ================= deterministic dataset: 213 Q2 FY26 hires ================= */
+const seed=20260722;let _s=seed;
+const rnd=()=>{_s|=0;_s=_s+0x6D2B79F5|0;let t=Math.imul(_s^_s>>>15,1|_s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const FIRST=['Ava','Noah','Mia','Leo','Zara','Ivan','Nora','Owen','Lena','Hugo','Iris','Felix','Maya','Ezra','Cleo','Rhys','Tara','Jude','Vera','Cole','Nina','Silas','Ruth','Axel','Dina','Marco','Elif','Yusuf','Anya','Piotr','Chidi','Sana','Ravi','Mei','Tomás','Ingrid','Kofi','Lucia','Andrei','Freya'];
+const LAST=['HART','Bell','Cruz','Dean','Ekwueme','Fox','Grant','Hale','Iyer','James','Kato','Lund','Mora','Nash','Ortiz','Patel','Quinn','Reyes','Shaw','Tran','Ueda','Vance','Wolf','Xu','Yang','Zhang','Novak','Silva','Kaur','Haddad','Bauer','Costa','Duarte','Eriksen','Fontaine'].map(s=>s[0]+s.slice(1).toLowerCase());
+const DEPTS=[
+ {name:'Engineering',n:86,roles:['Software Engineer I','Software Engineer II','Senior Software Engineer','Staff Platform Engineer','Site Reliability Engineer','Machine Learning Engineer','Senior Data Engineer','Security Engineer'],mgrs:['Dana Whitfield','Rob Feldman','Ana Duarte']},
+ {name:'Product',n:34,roles:['Product Manager','Senior Product Manager','Associate PM','Product Designer','Senior Product Designer','Product Analyst'],mgrs:['Kate Morrow','Theo Rousseau']},
+ {name:'Sales',n:48,roles:['Enterprise AE','Mid-Market AE','SDR','Sales Engineer','Solutions Consultant'],mgrs:['Miguel Torres','Priti Shah']},
+ {name:'Marketing',n:21,roles:['Content Marketing Mgr','Growth Marketer','Product Marketing Mgr','Brand Designer'],mgrs:['Fiona Gallagher']},
+ {name:'Customer Success',n:16,roles:['CS Manager','Onboarding Specialist','Support Engineer'],mgrs:['Leo Martins']},
+ {name:'Finance',n:8,roles:['Financial Analyst','Revenue Accountant','Payroll Specialist'],mgrs:['Grace Obi']}];
+const CURATED={
+ 'Engineering':[['Priya Raman','Senior Software Engineer','2026-06-22','Dana Whitfield'],['Marcus Chen','Staff Platform Engineer','2026-06-15','Dana Whitfield'],['Elena Vasquez','Software Engineer II','2026-06-08','Rob Feldman'],['Tomas Lindqvist','Site Reliability Engineer','2026-06-01','Ana Duarte'],['Grace Adeyemi','Senior Data Engineer','2026-05-26','Rob Feldman'],['Kenji Watanabe','Software Engineer II','2026-05-18','Ana Duarte'],['Sofia Petrov','Machine Learning Engineer','2026-05-04','Dana Whitfield'],["Liam O'Donnell",'Software Engineer I','2026-04-27','Rob Feldman']],
+ 'Product':[['Amara Osei','Senior Product Manager','2026-06-29','Kate Morrow'],['Daniel Kim','Product Manager','2026-06-17','Kate Morrow'],['Isabelle Fournier','Product Designer','2026-06-03','Theo Rousseau'],['Victor Nguyen','Senior Product Designer','2026-05-20','Theo Rousseau'],['Hannah Weiss','Product Manager','2026-05-11','Kate Morrow'],['Omar Farouk','Product Analyst','2026-04-29','Kate Morrow'],['Lucia Moreno','Product Designer','2026-04-20','Theo Rousseau'],['Ethan Park','Associate PM','2026-04-08','Kate Morrow']],
+ 'Sales':[['Rachel Steinberg','Enterprise AE','2026-06-24','Miguel Torres'],['Ben Calloway','Sales Engineer','2026-06-10','Miguel Torres'],['Yuki Tanaka','Mid-Market AE','2026-05-27','Priti Shah']],
+ 'Marketing':[['Zoe Castellanos','Content Marketing Mgr','2026-06-19','Fiona Gallagher'],['Sam Whitaker','Growth Marketer','2026-05-21','Fiona Gallagher']],
+ 'Customer Success':[['Ingrid Bakker','CS Manager','2026-06-12','Leo Martins'],['Devon Price','Onboarding Specialist','2026-05-06','Leo Martins']],
+ 'Finance':[['Amelia Croft','Financial Analyst','2026-06-05','Grace Obi']]};
+const HIRES=[];let empSeq=10400;const usedNames=new Set();
+DEPTS.forEach(d=>{
+  const cur=CURATED[d.name]||[];
+  cur.forEach(c=>{HIRES.push({id:'EMP-'+(empSeq++),name:c[0],dept:d.name,role:c[1],date:c[2],mgr:c[3]});usedNames.add(c[0])});
+  for(let i=cur.length;i<d.n;i++){
+    let nm;do{nm=FIRST[Math.floor(rnd()*FIRST.length)]+' '+LAST[Math.floor(rnd()*LAST.length)]}while(usedNames.has(nm));usedNames.add(nm);
+    const day=1+Math.floor(rnd()*75); // Apr 1 – Jun 14 (curated rows stay newest)
+    const iso=new Date(Date.UTC(2026,3,day)).toISOString().slice(0,10);
+    HIRES.push({id:'EMP-'+(empSeq++),name:nm,dept:d.name,role:d.roles[Math.floor(rnd()*d.roles.length)],date:iso,mgr:d.mgrs[Math.floor(rnd()*d.mgrs.length)]});
+  }
+});
+const reEsc=t=>String(t).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const hiWith=(v,f)=>f?String(v).replace(new RegExp('('+reEsc(f)+')','ig'),'<mark class="fhl">$1</mark>'):v;
+const fmtDate=iso=>new Date(iso+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+const byDept=dep=>HIRES.filter(h=>h.dept===dep);
+const desc=(a,b)=>b.date.localeCompare(a.date);
+
+/* ================= table widget (Block Kit Builder style) ================= */
+let tSeq=0;const tables={};
+const GRIDS={5:'1.3fr 1fr 1.5fr minmax(116px,1fr) 1.3fr',4:'1.15fr 1.5fr minmax(116px,.95fr) 1.25fr',3:'1.2fr 1.5fr minmax(116px,1fr)'};
+function tableHTML(cfg){
+  const id='t'+(++tSeq);
+  tables[id]={cfg,sortCol:cfg.sortCol,sortDir:cfg.sortDir||-1,page:0,filter:'',shellMinH:0,stream:true};
+  const el=document.createElement('div');el.className='dt';el.id=id;
+  drawTable(id,el);return el;
+}
+function drawTable(id,el){
+  el=el||document.getElementById(id);const st=tables[id],cfg=st.cfg;
+  const grid=GRIDS[cfg.cols.length];
+  let data=[...cfg.rows];
+  if(st.filter){const f=st.filter.toLowerCase();data=data.filter(r=>[r.name,r.dept,r.role,fmtDate(r.date),r.mgr].some(v=>String(v||'').toLowerCase().includes(f)));}
+  if(st.sortCol!==null&&st.sortCol!==undefined){
+    data.sort((a,b)=>{
+      const k=cfg.keys[st.sortCol];
+      return (k==='date'?a.date.localeCompare(b.date):String(a[k]).localeCompare(String(b[k])))*st.sortDir;
+    });
+  }
+  const ps=cfg.pageSize||10,pages=Math.max(1,Math.ceil(data.length/ps));
+  st.page=Math.min(st.page,pages-1);
+  const slice=data.slice(st.page*ps,(st.page+1)*ps);
+  let h=`<div class="dt-toprow"><div class="dt-caption">${cfg.caption} <span class="cn">${cfg.capNote||''}</span></div>`
+   +`<div class="dt-tools"><span class="dt-filter">${svgI('search','xs')}<input placeholder="Filter table..." value="${st.filter.replace(/"/g,'&quot;')}">${st.filter?'<span class="fclear">Clear</span>':''}</span>`
+   +`<button class="dt-iconbtn" title="Expand">${svgI('expand','sm')}</button><button class="dt-iconbtn" title="More actions">${svgI('dotsv','sm')}</button></div></div>`;
+  h+=`<div class="dt-shell"${st.shellMinH?` style="min-height:${st.shellMinH}px"`:''}><div class="dhead" style="grid-template-columns:${grid}">`;
+  cfg.cols.forEach((c,i)=>{
+    const s=i===st.sortCol;
+    h+=`<div class="hcell ${s?'sorted':''}" data-c="${i}">${c}<span class="si">${svgI(s?(st.sortDir===1?'arrup':'arrdn'):'arrup','xs')}</span></div>`;
+  });
+  h+='</div>';
+  h+='<div class="drows"'+(slice.length?'':' style="display:none"')+'>';
+  slice.forEach(r=>{
+    h+=`<div class="drow ${demo.paneEmp===r.id?'sel':''}" data-emp="${r.id}" style="grid-template-columns:${grid}">`;
+    cfg.keys.forEach((k,i)=>{
+      if(i===0)h+=`<div class="dcell" data-full="${r.name}"><a data-open="${r.id}">${hiWith(r.name,st.filter)}</a></div>`;
+      else if(k==='date')h+=`<div class="dcell" data-full="${fmtDate(r.date)}">${hiWith(fmtDate(r.date),st.filter)}</div>`;
+      else if(k==='mgr')h+=`<div class="dcell" data-full="@${r.mgr}"><span class="mention">${hiWith('@'+r.mgr,st.filter)}</span></div>`;
+      else h+=`<div class="dcell" data-full="${r[k]}">${hiWith(r[k],st.filter)}</div>`;
+    });
+    h+='</div>';
+  });
+  h+='</div>';
+  if(pages>1){
+    h+=`<div class="dt-pager"><button class="chev" data-pg="-1" ${st.page===0?'disabled':''}>${svgI('chevl','xs')}</button>`;
+    for(let p=0;p<pages;p++)h+=`<button class="pgn${p===st.page?' cur':''}" data-p="${p}">${p+1}</button>`;
+    h+=`<button class="chev" data-pg="1" ${st.page===pages-1?'disabled':''}>${svgI('chevr','xs')}</button></div>`;
+  }
+  h+='</div>';
+  el.innerHTML=h;
+  if(st.stream){
+    st.stream=false;
+    el.querySelectorAll('.drow').forEach((tr,i)=>{
+      tr.classList.add('ldg');
+      setTimeout(()=>{tr.classList.remove('ldg');tr.classList.add('rvl');},160+i*80);
+    });
+  }
+  const _sh=el.querySelector('.dt-shell');
+  if(!st.filter&&_sh)st.shellMinH=Math.max(st.shellMinH,_sh.offsetHeight);
+  el.querySelectorAll('.hcell').forEach(th=>th.onclick=e=>{e.stopPropagation();openMenu(+th.dataset.c,th)});
+  el.querySelector('[title="Expand"]').onclick=e=>{e.stopPropagation();openModal();};
+  el.querySelector('[title="More actions"]').onclick=e=>{e.stopPropagation();openActions(e.currentTarget);};
+  const fc=el.querySelector('.fclear');if(fc)fc.onclick=()=>{st.filter='';st.page=0;drawTable(id);};
+  requestAnimationFrame(markTrunc);
+  el.querySelectorAll('[data-pg]').forEach(b=>b.onclick=()=>{st.page+=+b.dataset.pg;drawTable(id)});
+  el.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{st.page=+b.dataset.p;drawTable(id)});
+  el.querySelectorAll('[data-open]').forEach(a=>a.onclick=e=>{e.preventDefault();demo.openPane(a.dataset.open)});
+  const inp=el.querySelector('.dt-filter input');
+  inp.oninput=()=>{
+    if(!st.filter){const sh=document.getElementById(id).querySelector('.dt-shell');if(sh)st.shellMinH=Math.max(st.shellMinH,sh.offsetHeight);}
+    st.filter=inp.value;st.page=0;drawTable(id);const n=document.getElementById(id).querySelector('.dt-filter input');n.focus();n.setSelectionRange(n.value.length,n.value.length);};
+
+  function closePops(){el.querySelectorAll('.sortmenu,.cellpop').forEach(m=>m.remove());document.removeEventListener('click',closePops);}
+  function openMenu(c,th){
+    closePops();
+    const m=document.createElement('div');m.className='sortmenu';
+    m.innerHTML='<div class="sm-label">Sort</div><div class="sm-opt" data-dir="1"><span class="smi">'+svgI('arrup','xs')+'</span>Ascending</div><div class="sm-opt" data-dir="-1"><span class="smi">'+svgI('arrdn','xs')+'</span>Descending</div>';
+    const er=el.getBoundingClientRect(),tr=th.getBoundingClientRect();
+    m.style.left=Math.max(0,Math.min(tr.left-er.left,el.clientWidth-200))+'px';
+    m.style.top=(tr.bottom-er.top+2)+'px';
+    m.addEventListener('click',ev=>ev.stopPropagation());
+    m.querySelectorAll('.sm-opt').forEach(o=>o.addEventListener('click',()=>{st.sortCol=c;st.sortDir=+o.dataset.dir;drawTable(id);if(demo.step===4&&cfg.tag==='eng'&&cfg.keys[c]==='date')demo.advance(5);}));
+    el.appendChild(m);
+    setTimeout(()=>document.addEventListener('click',closePops),0);
+  }
+  function openCellPop(dc){
+    closePops();
+    const p=document.createElement('div');p.className='cellpop';p.textContent=dc.dataset.full;
+    const er=el.getBoundingClientRect(),cr=dc.getBoundingClientRect();
+    p.style.left=(cr.left-er.left)+'px';p.style.top=(cr.top-er.top-2)+'px';p.style.minWidth=Math.min(cr.width,260)+'px';
+    p.addEventListener('click',ev=>ev.stopPropagation());
+    el.appendChild(p);
+    setTimeout(()=>document.addEventListener('click',closePops),0);
+  }
+
+  function openModal(){
+    closePops();
+    const sc=document.createElement('div');sc.className='dt-modal-scrim';
+    const md=document.createElement('div');md.className='dt-modal';
+    let msort=st.sortCol,mdir=st.sortDir,mfilter=st.filter;
+    function mdraw(){
+      let rows=[...cfg.rows];
+      if(mfilter){const f=mfilter.toLowerCase();rows=rows.filter(r=>[r.name,r.dept,r.role,fmtDate(r.date),r.mgr].some(v=>String(v||'').toLowerCase().includes(f)));}
+      if(msort!==null&&msort!==undefined)rows.sort((a,b)=>{const k=cfg.keys[msort];return (k==='date'?a.date.localeCompare(b.date):String(a[k]).localeCompare(String(b[k])))*mdir;});
+      let h='<div class="dtm-head"><div class="dtm-title">'+cfg.caption+'</div><span class="dtm-x">'+svgI('close','sm')+'</span></div>';
+      h+='<div class="dtm-filter">'+svgI('search','xs')+'<input placeholder="Filter table..." value="'+mfilter.replace(/"/g,'&quot;')+'">'+(mfilter?'<span class="fclear">Clear</span>':'')+'</div>';
+      h+='<div class="dtm-table"><div class="dtm-hrow" style="grid-template-columns:'+grid+'">';
+      cfg.cols.forEach((c,i)=>{const s=i===msort;h+='<div class="dtm-hcell '+(s?'sorted':'')+'" data-c="'+i+'">'+c+(s?' <span class="si">'+svgI(mdir===1?'arrup':'arrdn','xs')+'</span>':'')+'</div>';});
+      h+='</div><div class="dtm-body">';
+      rows.forEach(r=>{h+='<div class="dtm-row" style="grid-template-columns:'+grid+'">';cfg.keys.forEach((k,i)=>{
+        if(i===0)h+='<div class="dtm-cell"><a data-open="'+r.id+'">'+hiWith(r.name,mfilter)+'</a></div>';
+        else if(k==='date')h+='<div class="dtm-cell">'+hiWith(fmtDate(r.date),mfilter)+'</div>';
+        else if(k==='mgr')h+='<div class="dtm-cell"><span class="mention">'+hiWith('@'+r.mgr,mfilter)+'</span></div>';
+        else h+='<div class="dtm-cell">'+hiWith(r[k],mfilter)+'</div>';});h+='</div>';});
+      h+='</div></div>';
+      md.innerHTML=h;
+      md.querySelector('.dtm-x').onclick=closeM;
+      md.querySelectorAll('.dtm-hcell').forEach(hc=>hc.onclick=()=>{const c2=+hc.dataset.c;if(msort===c2)mdir*=-1;else{msort=c2;mdir=1}mdraw();});
+      md.querySelectorAll('[data-open]').forEach(a=>a.onclick=e=>{e.preventDefault();closeM();demo.openPane(a.dataset.open);});
+      const mi=md.querySelector('.dtm-filter input');
+      mi.oninput=()=>{mfilter=mi.value;mdraw();const n=md.querySelector('.dtm-filter input');n.focus();n.setSelectionRange(n.value.length,n.value.length);};
+      const mc=md.querySelector('.fclear');if(mc)mc.onclick=()=>{mfilter='';mdraw();};
+    }
+    function closeM(){sc.remove();document.removeEventListener('keydown',esc);}
+    function esc(e){if(e.key==='Escape')closeM();}
+    sc.onclick=e=>{if(e.target===sc)closeM();};
+    document.addEventListener('keydown',esc);
+    mdraw();sc.appendChild(md);document.body.appendChild(sc);
+  }
+
+  function curRows(){
+    let rows=[...cfg.rows];
+    if(st.filter){const f=st.filter.toLowerCase();rows=rows.filter(r=>[r.name,r.dept,r.role,fmtDate(r.date),r.mgr].some(v=>String(v||'').toLowerCase().includes(f)));}
+    if(st.sortCol!==null&&st.sortCol!==undefined)rows.sort((a,b)=>{const k=cfg.keys[st.sortCol];return (k==='date'?a.date.localeCompare(b.date):String(a[k]).localeCompare(String(b[k])))*st.sortDir;});
+    return rows;
+  }
+  function rowVals(r){return cfg.keys.map(k=>k==='date'?fmtDate(r.date):k==='mgr'?'@'+r.mgr:r[k]);}
+  function openActions(btn){
+    closePops();
+    const m=document.createElement('div');m.className='sortmenu';
+    m.innerHTML='<div class="sm-opt" data-act="copy"><span class="smi">'+svgI('copy','xs')+'</span>Copy table</div><div class="sm-opt" data-act="dl"><span class="smi">'+svgI('download','xs')+'</span>Download table</div>';
+    const er=el.getBoundingClientRect(),br=btn.getBoundingClientRect();
+    m.style.left=Math.max(0,br.right-er.left-190)+'px';m.style.top=(br.bottom-er.top+4)+'px';
+    m.addEventListener('click',ev=>ev.stopPropagation());
+    m.querySelector('[data-act=copy]').onclick=ev=>{
+      const tsv=[cfg.cols.join('\t')].concat(curRows().map(r=>rowVals(r).join('\t'))).join('\n');
+      try{navigator.clipboard.writeText(tsv);}catch(e){}
+      ev.currentTarget.innerHTML='<span class="smi">'+svgI('check','xs')+'</span>Copied';
+      setTimeout(closePops,650);
+    };
+    m.querySelector('[data-act=dl]').onclick=()=>{
+      const rows=curRows();
+      const fname=cfg.caption.toLowerCase().replace(/[^a-z0-9]+/g,'_')+'.csv';
+      dlToast(fname,()=>[cfg.cols.join(',')].concat(rows.map(r=>rowVals(r).map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(','))).join('\n'));
+      closePops();
+    };
+    el.appendChild(m);
+    setTimeout(()=>document.addEventListener('click',closePops),0);
+  }
+  function markTrunc(){
+    el.querySelectorAll('.dcell').forEach(dc=>{
+      if(dc.classList.contains('truncated'))return;
+      if(dc.scrollWidth>dc.clientWidth+1){
+        dc.classList.add('truncated');
+        const b=document.createElement('span');b.className='xbtn';b.innerHTML=svgI('cellexp','xs');
+        b.addEventListener('click',ev=>{ev.stopPropagation();openCellPop(dc);});
+        dc.appendChild(b);
+      }
+    });
+  }
+}
+
+/* ================= message helpers ================= */
+const msgs=document.getElementById('msgs');
+function el(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!==undefined)e.innerHTML=html;return e}
+function clock(){return demo.time}
+function addMsg(who,nodes){
+  const m=el('div','msg');
+  m.appendChild(el('div','avatar',who==='sam'?AV.sam:AV.bot));
+  const b=el('div','mbody');
+  b.appendChild(el('div','mhead',`<span class="mname">${who==='sam'?'Sam Okafor':'m8'}</span>${who==='bot'?'<span class="appb">APP</span>':''}<span class="mtime">${clock()}</span>`));
+  nodes.forEach(n=>b.appendChild(typeof n==='string'?el('div','mtext',n):n));
+  m.appendChild(b);msgs.appendChild(m);
+  msgs.scrollTop=msgs.scrollHeight;
+  return b;
+}
+function dmStart(){
+  return el('div','dmstart',
+    '<div class="dm-top"><div class="dm-av">'+avRobotProfile()+'</div>'
+    +'<div class="dm-name">m8 <span class="appb">APP</span> <span class="presdot"></span></div></div>'
+    +'<div class="dm-text">This is the very beginning of your direct message history with <span class="mention">@m8</span></div>'
+    +'<div class="dm-tip">'+svgI('bulb','sm')+'<a>How does m8 work?</a></div>');
+}
+function thinking(label){
+  const b=addMsg('bot',[el('div','thinkcard','<span class="spin"></span><span class="think-txt">'+(label||'Thinking...')+'</span><span class="tchev">'+svgI('chevd','sm')+'</span>')]);
+  return b.parentElement;
+}
+
+/* ================= demo engine ================= */
+const HINTS={
+ 1:'<span class="pulse"></span><b>Step 1 · Ask a broad question</b> — the ask is typed for you: press the green <b>Send</b> button',
+ 2:'<span class="pulse"></span><b>Step 2 · Ask for a breakdown</b> — press <b>Send</b> to ask “Group this by department”',
+ 3:'<span class="pulse"></span><b>Step 3 · Narrow it down</b> — press <b>Send</b> to ask “Just Engineering and Product”',
+ 4:'<span class="pulse"></span><b>Step 4 · Re-sort one group</b> — tap the <b>Start date</b> header on the <b>Engineering</b> table and pick a sort order',
+ 5:'<span class="pulse"></span><b>Step 5 · Check a record</b> — tap <b>Priya Raman</b> to open her record',
+ 6:'<b>Flow complete</b> — every control stays live: sort, page, open records, or ↺ Restart'
+};
+const QUERIES={1:'Show all new hires this quarter',2:'Group this by department',3:'Just Engineering and Product'};
+const cinput=document.getElementById('cinput'),csend=document.getElementById('csend');
+
+const demo={
+  step:0,time:'1:22 PM',paneEmp:null,busy:false,
+  setTime(t){this.time=t},
+  updateGuide(){
+    document.getElementById('hint').innerHTML=HINTS[this.step]||'';
+    const dots=document.getElementById('stepdots');dots.innerHTML='';
+    for(let i=1;i<=5;i++){const d=el('div','stepdot'+(i<this.step?' done':i===this.step?' cur':''),i<this.step?'✓':i);dots.appendChild(d)}
+  },
+  advance(n){this.step=n;this.updateGuide();this.prefill()},
+  prefill(){
+    const q=QUERIES[this.step];
+    cinput.value='';csend.classList.remove('ready');
+    if(q)this.typeInto(q);
+  },
+  typeInto(q){
+    let i=0;const tick=()=>{if(cinput.dataset.q!==q)return;cinput.value=q.slice(0,++i);if(i<q.length)setTimeout(tick,18);else csend.classList.add('ready')};
+    cinput.dataset.q=q;setTimeout(tick,350);
+  },
+  send(){
+    if(this.busy)return;
+    const q=QUERIES[this.step];if(!q||!cinput.value)return;
+    this.busy=true;cinput.value='';csend.classList.remove('ready');
+    addMsg('sam',[q]);
+    const th=thinking();
+    setTimeout(()=>{th.remove();this['reply'+this.step]();this.busy=false},1100);
+  },
+  /* ---- step replies ---- */
+  reply1(){
+    this.setTime('1:23 PM');
+    const t=tableHTML({caption:'New hires — Q2 FY26',capNote:'· 20 of 213',cols:['Name','Department','Role','Start date','Hiring manager'],keys:['name','dept','role','date','mgr'],rows:[...HIRES].sort(desc).slice(0,20),pageSize:10,sortCol:3,sortDir:-1});
+    addMsg('bot',[
+      `<span class="hl">213 people joined in Q2 FY26</span> (Apr 1 – Jun 30). Engineering hired the most (86), and hiring peaked in June. Showing the <span class="hl">first 20 rows</span>, sorted by start date.`,
+      t,
+      el('div','ctx',svgI('lock','xs')+' Showing records you have access to · Snapshot at 1:23 PM · 20 of 213 rows shown'),
+      el('div','fup','Refine this table by asking — e.g. “group by department” or “only June starts”.')
+    ]);
+    this.advance(2);
+  },
+  reply2(){
+    this.setTime('1:24 PM');
+    const nodes=[`Here are the <span class="hl">213 Q2 hires grouped into 6 departments</span>. Slack tables can’t nest, so each department is its own table — previewing up to the 20 most recent starts per group.`];
+    ['Engineering','Product','Sales','Marketing','Customer Success','Finance'].forEach(dp=>{
+      nodes.push(tableHTML({caption:`${dp} — Q2 FY26 new hires`,capNote:`· ${Math.min(20,byDept(dp).length)} of ${byDept(dp).length}`,cols:['Name','Role','Start date','Hiring manager'],keys:['name','role','date','mgr'],rows:byDept(dp).sort(desc).slice(0,20),pageSize:10,sortCol:2,sortDir:-1}));
+    });
+    nodes.push(
+      el('div','ctx',svgI('lock','xs')+' Showing records you have access to · Snapshot at 1:24 PM · 104 of 213 rows shown'),
+      el('div','fup','Ask to refine — e.g. “just Engineering and Product”.'));
+    addMsg('bot',nodes);
+    this.advance(3);
+  },
+  reply3(){
+    this.setTime('1:26 PM');
+    const nodes=[`Narrowed to <span class="hl">Engineering and Product — 120 of the 213 Q2 hires</span>. Previewing the 20 most recent starts in each; both sorted by start date.`];
+    [['Engineering','eng'],['Product','prod']].forEach(([dp,tag])=>{
+      nodes.push(tableHTML({tag,caption:`${dp} — Q2 FY26 new hires`,capNote:`· ${Math.min(20,byDept(dp).length)} of ${byDept(dp).length}`,cols:['Name','Role','Start date','Hiring manager'],keys:['name','role','date','mgr'],rows:byDept(dp).sort(desc).slice(0,20),pageSize:10,sortCol:2,sortDir:-1}));
+    });
+    nodes.push(
+      el('div','ctx',svgI('lock','xs')+' Showing records you have access to · Snapshot at 1:26 PM · 40 of 120 rows shown'),
+      el('div','fup','Ask to refine further — or use the table controls directly.'));
+    addMsg('bot',nodes);
+    this.advance(4);
+  },
+  /* ---- flexpane ---- */
+  openPane(empId){
+    const h=HIRES.find(x=>x.id===empId);if(!h)return;
+    this.paneEmp=empId;
+    const loc=h.name==='Priya Raman'?'Denver, CO, US (Remote), US':['Austin, TX, US','New York, NY, US','Mountain View, CA, US (Terra), US','Chicago, IL, US','Toronto, ON, CA'][empId.charCodeAt(7)%5];
+    const col=['#112377','#167D8E','#611F69','#5E1237','#185F34'][empId.charCodeAt(8)%5];
+    const parts=h.name.split(' ');
+    const email=(parts[0][0]+parts[parts.length-1]).toLowerCase().replace(/[^a-z]/g,'')+'@moveworks.ai';
+    const num=parseInt(h.id.slice(4));
+    const phone='+1 (917) '+String(4200000+num*137).slice(-7);
+    const days=Math.max(1,Math.round((new Date('2026-07-23T00:00:00')-new Date(h.date+'T00:00:00'))/86400000));
+    const rel=days<14?'1 week ago':days<60?Math.round(days/7)+' weeks ago':Math.round(days/30)+' months ago';
+    const mcol=['#7A5230','#3A5F8A','#6B4226','#584E8E'][h.mgr.length%4];
+    document.getElementById('fpbody').innerHTML=`
+      <div class="fp-photo">${avSil(col,undefined,0)}</div>
+      <div class="fp-name">${h.name}</div>
+      <div class="fp-role">${h.role}</div>
+      <div class="fp-status"><span class="fpdot"></span>Active</div>
+      <div class="fp-meta">
+        <div class="row">${svgI('clock','sm')} ${this.time} local time</div>
+        <div class="row">${svgI('bldg','sm')} <a>${loc}</a></div>
+        <div class="row">${svgI('person','sm')} Full Time</div>
+      </div>
+      <div class="fp-actions">
+        <button class="fpbtn">${svgI('dms','xs')} Message</button>
+        <button class="fpbtn">${svgI('huddle','xs')} Huddle ${svgI('chevd','xs')}</button>
+        <button class="fpbtn">${svgI('vip','xs')} VIP</button>
+        <button class="fpbtn">${svgI('dotsv','xs')}</button>
+      </div>
+      <div class="fp-sect"><div class="fp-h">Contact information</div>
+        <div class="fp-item"><span class="fp-itile">${svgI('mail','sm')}</span><div><div class="fp-lab">Email Address</div><div class="fp-val"><a>${email}</a></div></div></div>
+        <div class="fp-item"><span class="fp-itile">${svgI('phone','sm')}</span><div><div class="fp-lab">Phone</div><div class="fp-val"><a>${phone}</a></div></div></div>
+      </div>
+      <div class="fp-sect"><div class="fp-h">People</div>
+        <div class="fp-lab" style="margin-bottom:9px">Manager</div>
+        <div class="fp-mgr"><span class="fp-mav">${avSil(mcol)}</span><div><div class="fp-mn">${h.mgr}</div><div class="fp-mt">Director, ${h.dept}</div></div></div>
+      </div>
+      <div class="fp-sect"><div class="fp-h">Affiliations</div>
+        <div class="fp-lab">Organization</div><div class="fp-af">Moveworks, Inc.</div>
+        <div class="fp-lab">Department</div><div class="fp-af">${h.dept}</div>
+      </div>
+      <div class="fp-sect"><div class="fp-h">About me</div>
+        <div class="fp-lab">Start Date</div><div class="fp-val" style="margin-bottom:12px"><a>${fmtDate(h.date)} (${rel})</a></div>
+      </div>`;
+    document.getElementById('flexpane').classList.add('open');
+    document.querySelectorAll('.drow').forEach(tr=>tr.classList.toggle('sel',tr.dataset.emp===empId));
+    if(this.step===5&&h.name==='Priya Raman')this.advance(6);
+  },
+  closePane(){
+    this.paneEmp=null;
+    document.getElementById('flexpane').classList.remove('open');
+    document.querySelectorAll('.drow.sel').forEach(tr=>tr.classList.remove('sel'));
+  },
+  /* ---- download ---- */
+  download(depts){
+    if(this.busy)return;this.busy=true;
+    const fname=depts?'new_hires_q2_fy26_eng_product.csv':'new_hires_q2_fy26.csv';
+    dlToast(fname,()=>{
+      const rows=depts?HIRES.filter(h=>depts.includes(h.dept)):HIRES;
+      return ['employee_id,name,department,role,start_date,hiring_manager',
+        ...[...rows].sort(desc).map(h=>[h.id,`"${h.name}"`,h.dept,`"${h.role}"`,h.date,`"${h.mgr}"`].join(','))].join('\n');
+    });
+    setTimeout(()=>{this.busy=false},950);
+  },
+  restart(){
+    msgs.innerHTML='';this.closePane();this.busy=false;this.setTime('1:22 PM');
+    msgs.appendChild(dmStart());
+    this.advance(1);
+  }
+};
+function btnRow(btns){const r=el('div','btnrow');btns.forEach(b=>r.appendChild(b));return r}
+function dlToast(fname,makeCsv){
+  document.querySelectorAll('.dltoast').forEach(t=>t.remove());
+  const t=el('div','dltoast',
+    '<div class="dlic"><div class="fic">CSV</div><span class="dlbadge"><span class="spin sm"></span></span></div>'
+    +'<div><div class="dlname">'+fname+'</div><div class="dltype">CSV</div><div class="dlall">View all downloads</div></div>');
+  document.querySelector('.slack').appendChild(t);
+  requestAnimationFrame(()=>t.classList.add('show'));
+  setTimeout(()=>{
+    t.querySelector('.dlbadge').innerHTML=svgI('check','xs');
+    try{
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([makeCsv()],{type:'text/csv'}));
+      a.download=fname;
+      a.click();
+    }catch(e){}
+  },950);
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300)},4500);
+}
+function dlBtn(label,depts){const b=el('button','sbtn',label);b.onclick=()=>demo.download(depts);return b}
+csend.onclick=()=>demo.send();
+cinput.addEventListener('keydown',e=>{if(e.key==='Enter')demo.send()});
+window.demo=demo;
+applyKit(document);
+demo.restart();
+</script>
+</body>
+</html>
